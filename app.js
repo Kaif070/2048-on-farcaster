@@ -382,7 +382,37 @@ class Game2048 {
                 if (diffX > 0) {
                     this.move('right');
                 } else {
-                    this.move('left');
+                    // Final fallback: show message for manual copying
+                    const textArea = document.createElement('textarea');
+                    textArea.value = message;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    statusElement.textContent = '✓ Score copied to clipboard!';
+                    statusElement.classList.add('success');
+                }
+            }
+        } catch (error) {
+            console.error('Share failed:', error);
+            statusElement.textContent = '✗ Share failed. Please try again.';
+            statusElement.classList.add('error');
+        }
+        
+        // Hide status after 3 seconds
+        setTimeout(() => {
+            statusElement.classList.add('hidden');
+        }, 3000);
+    }
+}
+
+// Initialize game when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new Game2048();
+});this.move('left');
                 }
             }
         } else {
