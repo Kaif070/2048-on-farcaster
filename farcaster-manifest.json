@@ -7,30 +7,30 @@
     "fid": 12345
   },
   "icon": {
-    "url": "https://yourdomain.com/icon-192.png",
+    "url": "https://2048-on-farcaster.vercel.app/icon-192.png",
     "size": "192x192"
   },
   "splash": {
-    "url": "https://yourdomain.com/splash.png",
+    "url": "https://2048-on-farcaster.vercel.app/splash.png",
     "size": "512x512"
   },
   "frame": {
     "version": "vNext",
     "name": "2048 Game",
-    "iconUrl": "https://yourdomain.com/icon-192.png",
-    "splashImageUrl": "https://yourdomain.com/splash.png",
+    "iconUrl": "https://2048-on-farcaster.vercel.app/icon-192.png",
+    "splashImageUrl": "https://2048-on-farcaster.vercel.app/splash.png",
     "splashBackgroundColor": "#8B7355",
-    "homeUrl": "https://yourdomain.com/",
-    "webhookUrl": "https://yourdomain.com/api/webhook"
+    "homeUrl": "https://2048-on-farcaster.vercel.app/",
+    "webhookUrl": "https://2048-on-farcaster.vercel.app/api/webhook"
   },
   "permissions": [
     "cast.write",
     "user.read"
   ],
   "urls": {
-    "app": "https://yourdomain.com/",
-    "success": "https://yourdomain.com/success",
-    "failure": "https://yourdomain.com/error"
+    "app": "https://2048-on-farcaster.vercel.app/",
+    "success": "https://2048-on-farcaster.vercel.app/success",
+    "failure": "https://2048-on-farcaster.vercel.app/error"
   },
   "features": [
     "embeds",
