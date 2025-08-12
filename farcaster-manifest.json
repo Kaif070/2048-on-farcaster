@@ -1,0 +1,45 @@
+{
+  "name": "2048 Game",
+  "description": "Play the classic 2048 puzzle game and share your high scores on Farcaster!",
+  "version": "1.0.0",
+  "author": {
+    "name": "Your Name",
+    "fid": 12345
+  },
+  "icon": {
+    "url": "https://yourdomain.com/icon-192.png",
+    "size": "192x192"
+  },
+  "splash": {
+    "url": "https://yourdomain.com/splash.png",
+    "size": "512x512"
+  },
+  "frame": {
+    "version": "vNext",
+    "name": "2048 Game",
+    "iconUrl": "https://yourdomain.com/icon-192.png",
+    "splashImageUrl": "https://yourdomain.com/splash.png",
+    "splashBackgroundColor": "#8B7355",
+    "homeUrl": "https://yourdomain.com/",
+    "webhookUrl": "https://yourdomain.com/api/webhook"
+  },
+  "permissions": [
+    "cast.write",
+    "user.read"
+  ],
+  "urls": {
+    "app": "https://yourdomain.com/",
+    "success": "https://yourdomain.com/success",
+    "failure": "https://yourdomain.com/error"
+  },
+  "features": [
+    "embeds",
+    "share",
+    "notifications"
+  ],
+  "theme": {
+    "primaryColor": "#8B7355",
+    "backgroundColor": "#FAF8EF",
+    "fontFamily": "system-ui"
+  }
+}
