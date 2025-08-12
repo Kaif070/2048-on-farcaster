@@ -296,4 +296,26 @@ class Game2048 {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new Game2048());
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize game
+    new Game2048();
+
+    // In Warpcast/Farcaster Mini App, signal that the app is ready so splash can hide
+    const signalReady = () => {
+        try {
+            if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
+                window.sdk.actions.ready();
+            }
+        } catch (e) {
+            console.warn('sdk.actions.ready() failed or unavailable:', e);
+        }
+    };
+
+    if (document.readyState === 'complete') {
+        signalReady();
+    } else {
+        window.addEventListener('load', signalReady, { once: true });
+        // Fallback: also try after a short delay (covers fast-load scenarios)
+        setTimeout(signalReady, 1000);
+    }
+});
