@@ -299,25 +299,28 @@ document.addEventListener('touchend', (e) => {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize game
+    // Start the game
     new Game2048();
 
-    // In Warpcast/Farcaster Mini App, signal that the app is ready so splash can hide
+    // Function to tell Warpcast the app is ready
     const signalReady = () => {
         try {
             if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
                 window.sdk.actions.ready();
+                console.log("✅ sdk.actions.ready() called");
+            } else {
+                console.warn("⚠️ Farcaster SDK not available");
             }
-        } catch (e) {
-            console.warn('sdk.actions.ready() failed or unavailable:', e);
+        } catch (err) {
+            console.error("❌ Error calling sdk.actions.ready()", err);
         }
     };
 
+    // Call immediately if already loaded
     if (document.readyState === 'complete') {
         signalReady();
     } else {
+        // Call when window finishes loading
         window.addEventListener('load', signalReady, { once: true });
-        // Fallback: also try after a short delay (covers fast-load scenarios)
-        setTimeout(signalReady, 1000);
     }
 });
