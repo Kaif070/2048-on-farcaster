@@ -298,29 +298,49 @@ document.addEventListener('touchend', (e) => {
     }
 }
 
+// ---- Mini App boot & Warpcast ready signal (paste at very bottom of app.js) ----
 document.addEventListener('DOMContentLoaded', () => {
-    // Start the game
-    new Game2048();
+  // Start the game
+  new Game2048();
 
-    // Function to tell Warpcast the app is ready
-    const signalReady = () => {
-        try {
-            if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
-                window.sdk.actions.ready();
-                console.log("✅ sdk.actions.ready() called");
-            } else {
-                console.warn("⚠️ Farcaster SDK not available");
-            }
-        } catch (err) {
-            console.error("❌ Error calling sdk.actions.ready()", err);
-        }
-    };
+  // Robust "ready" signal to Warpcast
+  let readyCalled = false;
+  let attempts = 0;
 
-    // Call immediately if already loaded
-    if (document.readyState === 'complete') {
-        signalReady();
-    } else {
-        // Call when window finishes loading
-        window.addEventListener('load', signalReady, { once: true });
+  const tryReady = () => {
+    attempts++;
+    try {
+      if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
+        window.sdk.actions.ready();
+        readyCalled = true;
+        console.log('[mini-app] sdk.actions.ready() sent on attempt', attempts);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[mini-app] sdk.actions.ready() error:', e);
     }
+    return false;
+  };
+
+  // Call once now if possible
+  if (!tryReady()) {
+    // Keep trying on load, visibility changes, and with a short retry loop
+    const onLoad = () => { if (!readyCalled) tryReady(); };
+    const onVisible = () => { if (!readyCalled && !document.hidden) tryReady(); };
+
+    window.addEventListener('load', onLoad, { once: true });
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Retry a bunch of times in the first few seconds (SDK can load late inside Warpcast)
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (readyCalled) { clearInterval(interval); return; }
+      if (tryReady()) { clearInterval(interval); return; }
+      // Stop after ~8 seconds to avoid spamming
+      if (Date.now() - start > 8000) { clearInterval(interval); }
+    }, 250);
+
+    // Absolute fallback after a second (covers very fast loads)
+    setTimeout(() => { if (!readyCalled) tryReady(); }, 1000);
+  }
 });
