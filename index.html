@@ -11,7 +11,63 @@
     <meta name="theme-color" content="#8B7355">
 
     <!-- Farcaster Mini App SDK -->
-    <script src="https://cdn.farcaster.xyz/sdk/mini-app/v1.0.0/sdk.min.js"></script>
+<script src="https://cdn.farcaster.xyz/sdk/mini-app/v1.0.0/sdk.min.js"></script>
+
+<!-- Mini App ready helper (robust) -->
+<script>
+(function () {
+  // Tiny debug badge (remove later)
+  var badge = document.createElement('div');
+  badge.id = 'miniapp-debug';
+  badge.style.cssText = 'position:fixed;bottom:8px;right:8px;background:#111;color:#0f0;padding:6px 8px;font:12px/1.2 monospace;z-index:99999;border-radius:6px;opacity:.8';
+  badge.textContent = 'ready: pending';
+  document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(badge); });
+
+  let called = false, attempts = 0;
+  const callOnce = (fn, label) => {
+    if (called) return;
+    try { fn(); called = true; badge.textContent = 'ready: ' + label; console.log('[mini-app] ready via', label); }
+    catch (e) { console.warn('[mini-app] ready error @', label, e); }
+  };
+
+  function tryReady() {
+    attempts++;
+
+    // Known/likely namespaces
+    if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
+      return callOnce(window.sdk.actions.ready, 'sdk.actions.ready()');
+    }
+    if (window.farcaster && window.farcaster.actions && typeof window.farcaster.actions.ready === 'function') {
+      return callOnce(window.farcaster.actions.ready, 'farcaster.actions.ready()');
+    }
+    if (window.farcaster && window.farcaster.mini && window.farcaster.mini.actions &&
+        typeof window.farcaster.mini.actions.ready === 'function') {
+      return callOnce(window.farcaster.mini.actions.ready, 'farcaster.mini.actions.ready()');
+    }
+
+    // PostMessage fallbacks some clients listen for
+    if (attempts === 1) {
+      try { window.parent && window.parent.postMessage({ type: 'mini-app:ready' }, '*'); } catch(e){}
+      try { window.parent && window.parent.postMessage({ type: 'farcaster-mini-app-ready' }, '*'); } catch(e){}
+      console.log('[mini-app] posted ready fallbacks via postMessage');
+    }
+  }
+
+  // Initial try, then aggressive polling for a few seconds
+  tryReady();
+  const start = Date.now();
+  const iv = setInterval(() => {
+    if (called) { clearInterval(iv); return; }
+    tryReady();
+    if (Date.now() - start > 8000) clearInterval(iv);
+  }, 200);
+
+  // Also try when window fully loaded and when becoming visible
+  window.addEventListener('load', () => { if (!called) tryReady(); }, { once: true });
+  document.addEventListener('visibilitychange', () => { if (!called && !document.hidden) tryReady(); });
+})();
+</script>
+
 
     <!-- Open Graph for Farcaster frames -->
     <meta property="og:title" content="Farcaster 2048 Game">
