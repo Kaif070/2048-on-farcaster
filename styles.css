@@ -112,6 +112,8 @@ body {
     border-radius: 10px;
     padding: 10px;
     margin-bottom: 20px;
+    touch-action: none;
+
 }
 
 .game-board {
@@ -134,6 +136,8 @@ body {
     left: 10px;
     right: 10px;
     bottom: 10px;
+    pointer-events: none;
+
 }
 
 .tile {
