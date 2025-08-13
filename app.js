@@ -221,16 +221,18 @@ class Game2048 {
             else if (e.key === 'ArrowUp') { e.preventDefault(); this.move('up'); }
             else if (e.key === 'ArrowDown') { e.preventDefault(); this.move('down'); }
         });
-        this.gameBoard.addEventListener('touchstart', (e) => {
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-        });
-        this.gameBoard.addEventListener('touchend', (e) => {
-            if (!this.touchStartX || !this.touchStartY) return;
-            this.touchEndX = e.changedTouches[0].clientX;
-            this.touchEndY = e.changedTouches[0].clientY;
-            this.handleSwipe();
-        });
+document.addEventListener('touchstart', (e) => {
+    this.touchStartX = e.touches[0].clientX;
+    this.touchStartY = e.touches[0].clientY;
+});
+
+document.addEventListener('touchend', (e) => {
+    if (!this.touchStartX || !this.touchStartY) return;
+    this.touchEndX = e.changedTouches[0].clientX;
+    this.touchEndY = e.changedTouches[0].clientY;
+    this.handleSwipe();
+});
+
         this.newGameBtn.addEventListener('click', () => this.newGame());
         this.playAgainBtn.addEventListener('click', () => this.newGame());
         this.shareFarcasterBtn.addEventListener('click', () => this.shareToFarcaster());
