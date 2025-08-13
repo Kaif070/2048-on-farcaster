@@ -13,58 +13,68 @@
     <!-- Farcaster Mini App SDK -->
 <script src="https://cdn.farcaster.xyz/sdk/mini-app/v1.0.0/sdk.min.js"></script>
 
-<!-- Mini App ready helper (robust) -->
+<!-- Mini App ready helper + diagnostics -->
 <script>
 (function () {
-  // Tiny debug badge (remove later)
+  // Tiny on-screen logger so you can see what happens without DevTools
+  function log(msg) {
+    try {
+      console.log('[mini-app]', msg);
+      badge.textContent = msg;
+    } catch(_) {}
+  }
   var badge = document.createElement('div');
-  badge.id = 'miniapp-debug';
-  badge.style.cssText = 'position:fixed;bottom:8px;right:8px;background:#111;color:#0f0;padding:6px 8px;font:12px/1.2 monospace;z-index:99999;border-radius:6px;opacity:.8';
+  badge.style.cssText = 'position:fixed;bottom:8px;right:8px;background:#111;color:#0f0;padding:6px 8px;font:12px/1.3 monospace;border-radius:6px;z-index:99999;opacity:.85';
   badge.textContent = 'ready: pending';
   document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(badge); });
 
-  let called = false, attempts = 0;
-  const callOnce = (fn, label) => {
-    if (called) return;
-    try { fn(); called = true; badge.textContent = 'ready: ' + label; console.log('[mini-app] ready via', label); }
-    catch (e) { console.warn('[mini-app] ready error @', label, e); }
-  };
+  // Expose manual trigger for testing: run window._forceReady() in console
+  window._forceReady = function(){ tryReady(true); };
 
-  function tryReady() {
-    attempts++;
+  let called = false, tries = 0;
 
-    // Known/likely namespaces
-    if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function') {
-      return callOnce(window.sdk.actions.ready, 'sdk.actions.ready()');
-    }
-    if (window.farcaster && window.farcaster.actions && typeof window.farcaster.actions.ready === 'function') {
-      return callOnce(window.farcaster.actions.ready, 'farcaster.actions.ready()');
-    }
-    if (window.farcaster && window.farcaster.mini && window.farcaster.mini.actions &&
-        typeof window.farcaster.mini.actions.ready === 'function') {
-      return callOnce(window.farcaster.mini.actions.ready, 'farcaster.mini.actions.ready()');
-    }
-
-    // PostMessage fallbacks some clients listen for
-    if (attempts === 1) {
-      try { window.parent && window.parent.postMessage({ type: 'mini-app:ready' }, '*'); } catch(e){}
-      try { window.parent && window.parent.postMessage({ type: 'farcaster-mini-app-ready' }, '*'); } catch(e){}
-      console.log('[mini-app] posted ready fallbacks via postMessage');
-    }
+  function callOnce(fn, label) {
+    if (called) return true;
+    try { fn(); called = true; log('ready sent via ' + label); return true; }
+    catch (e) { log('error @ ' + label + ': ' + e); }
+    return false;
   }
 
-  // Initial try, then aggressive polling for a few seconds
-  tryReady();
+  function tryReady(manual) {
+    if (called) return true;
+    tries++;
+
+    // Probe known namespaces (different Warpcast builds have used different shapes)
+    try {
+      if (window.sdk?.actions?.ready) return callOnce(window.sdk.actions.ready, 'sdk.actions.ready()');
+      if (window.farcaster?.actions?.ready) return callOnce(window.farcaster.actions.ready, 'farcaster.actions.ready()');
+      if (window.farcaster?.mini?.actions?.ready) return callOnce(window.farcaster.mini.actions.ready, 'farcaster.mini.actions.ready()');
+      if (window.__warpcast__?.miniApp?.actions?.ready) return callOnce(window.__warpcast__.miniApp.actions.ready, '__warpcast__.miniApp.actions.ready()');
+    } catch (e) { log('namespace probe error: ' + e); }
+
+    // PostMessage fallbacks that some clients listen for
+    if (tries === 1 || manual) {
+      try { window.parent?.postMessage({ type: 'mini-app:ready' }, '*'); log('posted mini-app:ready'); } catch(_) {}
+      try { window.parent?.postMessage({ type: 'farcaster-mini-app-ready' }, '*'); log('posted farcaster-mini-app-ready'); } catch(_) {}
+      try { window.parent?.postMessage({ type: 'sdk.actions.ready' }, '*'); log('posted sdk.actions.ready'); } catch(_) {}
+    }
+
+    // Show what objects exist so you can screenshot
+    log('waiting: sdk=' + !!window.sdk + ' fc=' + !!window.farcaster + ' tries=' + tries);
+    return false;
+  }
+
+  // Initial attempt + aggressive polling for ~8s
+  tryReady(false);
   const start = Date.now();
   const iv = setInterval(() => {
     if (called) { clearInterval(iv); return; }
-    tryReady();
+    tryReady(false);
     if (Date.now() - start > 8000) clearInterval(iv);
   }, 200);
 
-  // Also try when window fully loaded and when becoming visible
-  window.addEventListener('load', () => { if (!called) tryReady(); }, { once: true });
-  document.addEventListener('visibilitychange', () => { if (!called && !document.hidden) tryReady(); });
+  window.addEventListener('load', () => { if (!called) tryReady(false); }, { once: true });
+  document.addEventListener('visibilitychange', () => { if (!called && !document.hidden) tryReady(false); });
 })();
 </script>
 
