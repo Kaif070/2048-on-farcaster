@@ -1,12 +1,13 @@
 /**
- * Farcaster 2048 Mini App - Fixed Version
+ * Farcaster 2048 Mini App - Fixed Version with Memory Storage
  */
 
 class Game2048 {
     constructor() {
         this.board = [];
         this.score = 0;
-        this.bestScore = parseInt(localStorage.getItem('best2048Score') || '0');
+        // Use memory storage instead of localStorage for compatibility
+        this.bestScore = this.getBestScore();
         this.size = 4;
         this.isGameOver = false;
         this.hasWon = false;
@@ -20,7 +21,7 @@ class Game2048 {
         this.gameOverModal = document.getElementById('game-over-modal');
         this.playAgainBtn = document.getElementById('play-again-btn');
         this.shareFarcasterBtn = document.getElementById('share-farcaster-btn');
-        this.statusElement = document.getElementById('share-status'); // FIXED
+        this.statusElement = document.getElementById('share-status');
 
         // Touch vars
         this.touchStartX = 0;
@@ -31,11 +32,69 @@ class Game2048 {
         this.init();
     }
 
+    // Memory-based storage methods
+    getBestScore() {
+        try {
+            return parseInt(localStorage.getItem('best2048Score') || '0');
+        } catch (e) {
+            // Fallback to memory storage if localStorage isn't available
+            return window._game2048BestScore || 0;
+        }
+    }
+
+    setBestScore(score) {
+        try {
+            localStorage.setItem('best2048Score', score.toString());
+        } catch (e) {
+            // Fallback to memory storage
+            window._game2048BestScore = score;
+        }
+    }
+
     init() {
         this.createGrid();
         this.newGame();
         this.setupEventListeners();
         this.bestScoreElement.textContent = this.bestScore;
+        
+        // Call ready after game is initialized
+        this.callFarcasterReady();
+    }
+
+    callFarcasterReady() {
+        // Multiple attempts to call ready
+        const readyMethods = [
+            () => window.sdk?.actions?.ready(),
+            () => window.farcaster?.actions?.ready(),
+            () => window.farcaster?.mini?.actions?.ready(),
+            () => window.__warpcast__?.miniApp?.actions?.ready(),
+            () => window.actions?.ready(),
+            () => window.FarcasterSDK?.actions?.ready()
+        ];
+
+        let readyCalled = false;
+        
+        for (const method of readyMethods) {
+            try {
+                if (typeof method === 'function' && method()) {
+                    console.log('Farcaster ready called successfully');
+                    readyCalled = true;
+                    break;
+                }
+            } catch (e) {
+                // Continue to next method
+            }
+        }
+
+        // Fallback postMessage
+        if (!readyCalled) {
+            try {
+                window.parent?.postMessage({ type: 'mini-app:ready' }, '*');
+                window.parent?.postMessage({ type: 'farcaster-mini-app-ready' }, '*');
+            } catch (e) {
+                console.log('PostMessage ready fallback attempted');
+            }
+        }
     }
 
     createGrid() {
@@ -90,7 +149,7 @@ class Game2048 {
         if (this.score > this.bestScore) {
             this.bestScore = this.score;
             this.bestScoreElement.textContent = this.bestScore;
-            localStorage.setItem('best2048Score', this.bestScore.toString());
+            this.setBestScore(this.bestScore);
         }
         this.tileContainer.innerHTML = '';
         for (let r = 0; r < this.size; r++) {
@@ -221,17 +280,18 @@ class Game2048 {
             else if (e.key === 'ArrowUp') { e.preventDefault(); this.move('up'); }
             else if (e.key === 'ArrowDown') { e.preventDefault(); this.move('down'); }
         });
-document.addEventListener('touchstart', (e) => {
-    this.touchStartX = e.touches[0].clientX;
-    this.touchStartY = e.touches[0].clientY;
-});
 
-document.addEventListener('touchend', (e) => {
-    if (!this.touchStartX || !this.touchStartY) return;
-    this.touchEndX = e.changedTouches[0].clientX;
-    this.touchEndY = e.changedTouches[0].clientY;
-    this.handleSwipe();
-});
+        document.addEventListener('touchstart', (e) => {
+            this.touchStartX = e.touches[0].clientX;
+            this.touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (!this.touchStartX || !this.touchStartY) return;
+            this.touchEndX = e.changedTouches[0].clientX;
+            this.touchEndY = e.changedTouches[0].clientY;
+            this.handleSwipe();
+        });
 
         this.newGameBtn.addEventListener('click', () => this.newGame());
         this.playAgainBtn.addEventListener('click', () => this.newGame());
@@ -261,8 +321,22 @@ document.addEventListener('touchend', (e) => {
         const score = this.score;
         const highestTile = this.getHighestTile();
         const message = `🎮 I scored ${score} points in Farcaster 2048! My highest tile was ${highestTile}. Can you beat me? Play at ${window.location.href}`;
+        
         this.statusElement.classList.remove('hidden', 'success', 'error');
+        
         try {
+            // Try Farcaster SDK first
+            if (window.sdk?.actions?.share) {
+                await window.sdk.actions.share({
+                    text: message,
+                    embeds: [{ url: window.location.href }]
+                });
+                this.statusElement.textContent = '✓ Posted to Farcaster!';
+                this.statusElement.classList.add('success');
+                return;
+            }
+
+            // Try Farcaster parent window communication
             if (window.parent !== window) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 window.parent.postMessage({
@@ -272,7 +346,11 @@ document.addEventListener('touchend', (e) => {
                 this.statusElement.textContent = '✓ Posted to Farcaster!';
                 this.statusElement.classList.add('success');
             } else if (navigator.share) {
-                await navigator.share({ title: 'Farcaster 2048 Score', text: message, url: window.location.href });
+                await navigator.share({ 
+                    title: 'Farcaster 2048 Score', 
+                    text: message, 
+                    url: window.location.href 
+                });
                 this.statusElement.textContent = '✓ Shared successfully!';
                 this.statusElement.classList.add('success');
             } else if (navigator.clipboard) {
@@ -294,11 +372,29 @@ document.addEventListener('touchend', (e) => {
             this.statusElement.textContent = '✗ Share failed. Please try again.';
             this.statusElement.classList.add('error');
         }
-        setTimeout(() => { this.statusElement.classList.add('hidden'); }, 3000);
+        
+        setTimeout(() => { 
+            this.statusElement.classList.add('hidden'); 
+        }, 3000);
     }
 }
 
-// --- Boot game (keep this at the very bottom of app.js)
+// Boot game when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  new Game2048();
+    new Game2048();
+});
+
+// Additional ready call after game is loaded
+window.addEventListener('load', () => {
+    // Final attempt to call ready
+    setTimeout(() => {
+        try {
+            if (window.sdk?.actions?.ready && typeof window.sdk.actions.ready === 'function') {
+                window.sdk.actions.ready();
+                console.log('Final ready call attempted');
+            }
+        } catch (e) {
+            console.log('Final ready call failed:', e);
+        }
+    }, 500);
 });
