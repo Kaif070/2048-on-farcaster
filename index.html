@@ -10,135 +10,54 @@
     <link rel="manifest" href="farcaster-manifest.json">
     <meta name="theme-color" content="#8B7355">
 
-    <!-- Farcaster Mini App SDK - Load first -->
-    <script src="https://sdk.farcaster.xyz/v1.0.0/sdk.js"></script>
-
-    <!-- Enhanced Ready Helper -->
-    <script>
-    (function () {
-      // Visual status panel
+    <!-- Official Farcaster Mini App SDK -->
+    <script type="module">
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+      
+      // Make SDK globally available
+      window.farcasterSDK = sdk;
+      
+      // Debug panel
       const panel = document.createElement('div');
       panel.id = 'miniapp-status';
       panel.style.cssText = 'position:fixed;bottom:8px;left:8px;max-width:92vw;background:#0b0b0bcc;color:#eee;padding:8px 10px;border-radius:8px;font:12px/1.4 monospace;z-index:999999';
-      panel.innerHTML = 'ready: <b>pending</b>';
       
-      const set = (msg) => {
+      const log = (msg) => {
         panel.innerHTML = msg;
-        console.log('[mini-app]', msg);
+        console.log('[MiniApp]', msg);
       };
-
-      let readyCalled = false;
-      let attempts = 0;
-      const maxAttempts = 50; // Try for ~10 seconds
-
-      function callReady(method, label) {
-        if (readyCalled) return true;
-        try {
-          if (typeof method === 'function') {
-            method();
-            readyCalled = true;
-            set('✅ success via <b>' + label + '</b>');
-            return true;
-          }
-        } catch (e) {
-          set('❌ error @ ' + label + ': ' + (e?.message || e));
-        }
-        return false;
-      }
-
-      function attemptReady() {
-        if (readyCalled) return;
-        attempts++;
-
-        // Check all possible SDK locations
-        const checks = [];
-        
-        // Standard SDK locations
-        if (window.sdk?.actions?.ready) {
-          checks.push(['sdk.actions.ready', window.sdk.actions.ready]);
-        }
-        
-        if (window.farcaster?.actions?.ready) {
-          checks.push(['farcaster.actions.ready', window.farcaster.actions.ready]);
-        }
-        
-        if (window.farcaster?.mini?.actions?.ready) {
-          checks.push(['farcaster.mini.actions.ready', window.farcaster.mini.actions.ready]);
-        }
-        
-        if (window.__warpcast__?.miniApp?.actions?.ready) {
-          checks.push(['__warpcast__.miniApp.actions.ready', window.__warpcast__.miniApp.actions.ready]);
-        }
-
-        if (window.actions?.ready) {
-          checks.push(['actions.ready', window.actions.ready]);
-        }
-
-        // Try Farcaster SDK global
-        if (window.FarcasterSDK?.actions?.ready) {
-          checks.push(['FarcasterSDK.actions.ready', window.FarcasterSDK.actions.ready]);
-        }
-
-        const status = checks.map(([name, fn]) => 
-          name + '=' + (typeof fn === 'function' ? '✓' : '✗')
-        ).join(' | ');
-        
-        set(`⏳ attempt ${attempts}/${maxAttempts}: ${status}`);
-
-        // Try each available method
-        for (const [label, method] of checks) {
-          if (callReady(method, label)) return;
-        }
-
-        // Fallback postMessage attempts
-        if (attempts <= 3) {
-          try {
-            window.parent?.postMessage({ type: 'mini-app:ready' }, '*');
-            window.parent?.postMessage({ type: 'farcaster-mini-app-ready' }, '*');
-            window.parent?.postMessage({ type: 'sdk.actions.ready' }, '*');
-            set(panel.innerHTML + '<br>↪️ posted fallback messages');
-          } catch (e) {
-            // Ignore postMessage errors
-          }
-        }
-
-        // Continue trying if we haven't succeeded and haven't exceeded max attempts
-        if (!readyCalled && attempts < maxAttempts) {
-          setTimeout(attemptReady, 200);
-        } else if (!readyCalled) {
-          set('❌ failed after ' + maxAttempts + ' attempts');
-        }
-      }
-
-      // Start attempting immediately and on various events
+      
+      // Add panel to page
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
           document.body.appendChild(panel);
-          attemptReady();
         });
       } else {
         document.body.appendChild(panel);
-        attemptReady();
       }
-
-      // Also try when page loads and becomes visible
-      window.addEventListener('load', attemptReady);
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && !readyCalled) attemptReady();
-      });
-
-      // Manual trigger for debugging
-      window._forceMiniReady = attemptReady;
       
-      // Also expose a direct ready call for the game
-      window._directReady = function() {
-        if (window.sdk?.actions?.ready) {
-          window.sdk.actions.ready();
+      log('SDK loaded, waiting for game...');
+      
+      // Call ready function
+      async function callReady() {
+        try {
+          await sdk.actions.ready();
+          log('✅ Ready called successfully!');
           return true;
+        } catch (error) {
+          log('❌ Ready failed: ' + error.message);
+          return false;
         }
-        return false;
-      };
-    })();
+      }
+      
+      // Make ready function globally available
+      window.callFarcasterReady = callReady;
+      
+      // Auto-call ready after a short delay
+      setTimeout(async () => {
+        log('Auto-calling ready...');
+        await callReady();
+      }, 1000);
     </script>
 
     <!-- Open Graph for Farcaster frames -->
@@ -215,15 +134,16 @@
     
     <script src="app.js"></script>
 
-    <!-- Additional ready call after game loads -->
+    <!-- Final ready call after everything loads -->
     <script>
-    // Final attempt after everything is loaded
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        if (window._directReady && !window._readyCallSucceeded) {
-          window._directReady();
+    // Additional ready call when game is fully loaded
+    window.addEventListener('load', async function() {
+      // Wait a bit for game to initialize
+      setTimeout(async () => {
+        if (window.callFarcasterReady) {
+          await window.callFarcasterReady();
         }
-      }, 1000);
+      }, 500);
     });
     </script>
 
