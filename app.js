@@ -66,6 +66,13 @@ class Game2048 {
         if (window.farcasterSDK) {
             setTimeout(async () => {
                 try {
+                    // Disable native gestures that conflict with game controls
+                    if (window.farcasterSDK.actions.setConfig) {
+                        await window.farcasterSDK.actions.setConfig({
+                            disableNativeGestures: true
+                        });
+                    }
+                    
                     await window.farcasterSDK.actions.ready();
                     console.log('🎮 Game ready called via official SDK');
                 } catch (error) {
