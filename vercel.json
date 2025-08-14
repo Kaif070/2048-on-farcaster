@@ -2,24 +2,7 @@
   "redirects": [
     {
       "source": "/.well-known/farcaster.json",
-      "destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/0198a71a-b54c-cf7e-694f-5f767764618e",
-      "permanent": false,
-      "statusCode": 307
-    }
-  ],
-  "headers": [
-    {
-      "source": "/.well-known/farcaster.json",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/json"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
+      "destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/0198a71a-b54c-cf7e-694f-5f767764618e"
     }
   ]
 }
