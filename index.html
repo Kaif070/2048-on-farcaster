@@ -10,93 +10,136 @@
     <link rel="manifest" href="farcaster-manifest.json">
     <meta name="theme-color" content="#8B7355">
 
-    <!-- Farcaster Mini App SDK -->
-<script src="https://cdn.farcaster.xyz/sdk/mini-app/v1.0.0/sdk.min.js"></script>
+    <!-- Farcaster Mini App SDK - Load first -->
+    <script src="https://sdk.farcaster.xyz/v1.0.0/sdk.js"></script>
 
-<!-- Universal Ready Helper + Visual Diagnostics -->
-<script>
-(function () {
-  // Visual status panel
-  const panel = document.createElement('div');
-  panel.id = 'miniapp-status';
-  panel.style.cssText = 'position:fixed;bottom:8px;left:8px;max-width:92vw;background:#0b0b0bcc;color:#eee;padding:8px 10px;border-radius:8px;font:12px/1.4 monospace;z-index:999999';
-  panel.innerHTML = 'ready: <b>pending</b>';
-  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
-  const set = (msg)=>{ panel.innerHTML = msg; console.log('[mini-app]', msg); };
+    <!-- Enhanced Ready Helper -->
+    <script>
+    (function () {
+      // Visual status panel
+      const panel = document.createElement('div');
+      panel.id = 'miniapp-status';
+      panel.style.cssText = 'position:fixed;bottom:8px;left:8px;max-width:92vw;background:#0b0b0bcc;color:#eee;padding:8px 10px;border-radius:8px;font:12px/1.4 monospace;z-index:999999';
+      panel.innerHTML = 'ready: <b>pending</b>';
+      
+      const set = (msg) => {
+        panel.innerHTML = msg;
+        console.log('[mini-app]', msg);
+      };
 
-  let called = false, tries = 0;
+      let readyCalled = false;
+      let attempts = 0;
+      const maxAttempts = 50; // Try for ~10 seconds
 
-  function callReady(fn, label) {
-    if (called || !fn) return false;
-    try {
-      fn();
-      called = true;
-      set('✅ sent via <b>' + label + '</b>');
-      return true;
-    } catch (e) {
-      set('❌ error @ ' + label + ': ' + (e && e.message || e));
-      return false;
-    }
-  }
+      function callReady(method, label) {
+        if (readyCalled) return true;
+        try {
+          if (typeof method === 'function') {
+            method();
+            readyCalled = true;
+            set('✅ success via <b>' + label + '</b>');
+            return true;
+          }
+        } catch (e) {
+          set('❌ error @ ' + label + ': ' + (e?.message || e));
+        }
+        return false;
+      }
 
-  function tryAll() {
-    if (called) return true;
-    tries++;
+      function attemptReady() {
+        if (readyCalled) return;
+        attempts++;
 
-    // Enumerate and try every known namespace/shape
-    const c = [];
-    c.push('sdk=' + !!(window.sdk));
-    c.push('sdk.actions=' + !!(window.sdk && window.sdk.actions));
-    c.push('farcaster=' + !!(window.farcaster));
-    c.push('farcaster.actions=' + !!(window.farcaster && window.farcaster.actions));
-    c.push('farcaster.mini.actions=' + !!(window.farcaster && window.farcaster.mini && window.farcaster.mini.actions));
-    c.push('__warpcast__.miniApp.actions=' + !!(window.__warpcast__ && window.__warpcast__.miniApp && window.__warpcast__.miniApp.actions));
-    c.push('actions=' + !!(window.actions)); // some builds expose global actions
-    set('⏳ waiting (' + tries + '): ' + c.join(' | '));
+        // Check all possible SDK locations
+        const checks = [];
+        
+        // Standard SDK locations
+        if (window.sdk?.actions?.ready) {
+          checks.push(['sdk.actions.ready', window.sdk.actions.ready]);
+        }
+        
+        if (window.farcaster?.actions?.ready) {
+          checks.push(['farcaster.actions.ready', window.farcaster.actions.ready]);
+        }
+        
+        if (window.farcaster?.mini?.actions?.ready) {
+          checks.push(['farcaster.mini.actions.ready', window.farcaster.mini.actions.ready]);
+        }
+        
+        if (window.__warpcast__?.miniApp?.actions?.ready) {
+          checks.push(['__warpcast__.miniApp.actions.ready', window.__warpcast__.miniApp.actions.ready]);
+        }
 
-    if (window.sdk && window.sdk.actions && typeof window.sdk.actions.ready === 'function')
-      if (callReady(window.sdk.actions.ready, 'sdk.actions.ready()')) return true;
+        if (window.actions?.ready) {
+          checks.push(['actions.ready', window.actions.ready]);
+        }
 
-    if (window.farcaster && window.farcaster.actions && typeof window.farcaster.actions.ready === 'function')
-      if (callReady(window.farcaster.actions.ready, 'farcaster.actions.ready()')) return true;
+        // Try Farcaster SDK global
+        if (window.FarcasterSDK?.actions?.ready) {
+          checks.push(['FarcasterSDK.actions.ready', window.FarcasterSDK.actions.ready]);
+        }
 
-    if (window.farcaster && window.farcaster.mini && window.farcaster.mini.actions && typeof window.farcaster.mini.actions.ready === 'function')
-      if (callReady(window.farcaster.mini.actions.ready, 'farcaster.mini.actions.ready()')) return true;
+        const status = checks.map(([name, fn]) => 
+          name + '=' + (typeof fn === 'function' ? '✓' : '✗')
+        ).join(' | ');
+        
+        set(`⏳ attempt ${attempts}/${maxAttempts}: ${status}`);
 
-    if (window.__warpcast__ && window.__warpcast__.miniApp && window.__warpcast__.miniApp.actions &&
-        typeof window.__warpcast__.miniApp.actions.ready === 'function')
-      if (callReady(window.__warpcast__.miniApp.actions.ready, '__warpcast__.miniApp.actions.ready()')) return true;
+        // Try each available method
+        for (const [label, method] of checks) {
+          if (callReady(method, label)) return;
+        }
 
-    if (window.actions && typeof window.actions.ready === 'function')
-      if (callReady(window.actions.ready, 'actions.ready()')) return true;
+        // Fallback postMessage attempts
+        if (attempts <= 3) {
+          try {
+            window.parent?.postMessage({ type: 'mini-app:ready' }, '*');
+            window.parent?.postMessage({ type: 'farcaster-mini-app-ready' }, '*');
+            window.parent?.postMessage({ type: 'sdk.actions.ready' }, '*');
+            set(panel.innerHTML + '<br>↪️ posted fallback messages');
+          } catch (e) {
+            // Ignore postMessage errors
+          }
+        }
 
-    // PostMessage fallbacks (some internal clients listen to these)
-    if (tries === 1) {
-      try { window.parent && window.parent.postMessage({ type: 'mini-app:ready' }, '*'); } catch(_) {}
-      try { window.parent && window.parent.postMessage({ type: 'farcaster-mini-app-ready' }, '*'); } catch(_) {}
-      try { window.parent && window.parent.postMessage({ type: 'sdk.actions.ready' }, '*'); } catch(_) {}
-      set(panel.innerHTML + '<br>↪︎ posted postMessage fallbacks');
-    }
-    return false;
-  }
+        // Continue trying if we haven't succeeded and haven't exceeded max attempts
+        if (!readyCalled && attempts < maxAttempts) {
+          setTimeout(attemptReady, 200);
+        } else if (!readyCalled) {
+          set('❌ failed after ' + maxAttempts + ' attempts');
+        }
+      }
 
-  // Initial probe + aggressive polling for ~10s
-  tryAll();
-  const start = Date.now();
-  const iv = setInterval(() => {
-    if (called) { clearInterval(iv); return; }
-    tryAll();
-    if (Date.now() - start > 10000) clearInterval(iv);
-  }, 200);
+      // Start attempting immediately and on various events
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          document.body.appendChild(panel);
+          attemptReady();
+        });
+      } else {
+        document.body.appendChild(panel);
+        attemptReady();
+      }
 
-  // Also try on load and when tab becomes visible
-  window.addEventListener('load', () => { if (!called) tryAll(); }, { once: true });
-  document.addEventListener('visibilitychange', () => { if (!called && !document.hidden) tryAll(); });
+      // Also try when page loads and becomes visible
+      window.addEventListener('load', attemptReady);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !readyCalled) attemptReady();
+      });
 
-  // Manual trigger for you (from console): window._forceMiniReady()
-  window._forceMiniReady = () => tryAll();
-})();
-</script>
+      // Manual trigger for debugging
+      window._forceMiniReady = attemptReady;
+      
+      // Also expose a direct ready call for the game
+      window._directReady = function() {
+        if (window.sdk?.actions?.ready) {
+          window.sdk.actions.ready();
+          return true;
+        }
+        return false;
+      };
+    })();
+    </script>
 
     <!-- Open Graph for Farcaster frames -->
     <meta property="og:title" content="Farcaster 2048 Game">
@@ -172,26 +215,16 @@
     
     <script src="app.js"></script>
 
-    <!-- Farcaster Mini App SDK (attempt to load); includes a lightweight fallback stub -->
+    <!-- Additional ready call after game loads -->
     <script>
-    (function() {
-      // Attempt to load official SDK (non-breaking if 404)
-      try {
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://cdn.farcaster.xyz/sdk/mini-app/v1.0.0/sdk.min.js';
-        document.head.appendChild(s);
-      } catch (e) { /* ignore */ }
-
-      // Fallback stub so sdk.actions.ready() won't crash in non-Warpcast browsers
-      if (!window.sdk) {
-        window.sdk = { actions: {
-          ready: function() {
-            try { window.parent && window.parent.postMessage({ type: 'mini-app:ready' }, '*'); } catch(e) {}
-          }
-        }};
-      }
-    })();
+    // Final attempt after everything is loaded
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        if (window._directReady && !window._readyCallSucceeded) {
+          window._directReady();
+        }
+      }, 1000);
+    });
     </script>
 
 </body>
