@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <style>
+      /* Prevent native gesture conflicts */
+      body, html {
+        overscroll-behavior: none;
+        touch-action: pan-x pan-y;
+      }
+      .game-container {
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+    </style>
     <title>Farcaster 2048</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="farcaster-manifest.json">
@@ -38,9 +49,17 @@
       
       log('SDK loaded, waiting for game...');
       
-      // Call ready function
+      // Call ready function with gesture config
       async function callReady() {
         try {
+          // Disable native gestures that conflict with game
+          if (sdk.actions.setConfig) {
+            await sdk.actions.setConfig({
+              disableNativeGestures: true
+            });
+            log('🎮 Native gestures disabled');
+          }
+          
           await sdk.actions.ready();
           log('✅ Ready called successfully!');
           return true;
