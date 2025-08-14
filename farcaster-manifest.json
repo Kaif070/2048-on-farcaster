@@ -11,10 +11,5 @@
     "websiteUrl": "https://2048-on-farcaster.vercel.app/",
     "backgroundColor": "#FAF8EF",
     "primaryColor": "#8B7355"
-  },
-  "accountAssociation": {
-    "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9",
-    "payload": "eyJpc3MiOiJkaWQ6cGtjOiJkaWQ6cGtjOjpkaWQ6cGtjOmV0aDoweDEyMzQ1Njc4OTBhYmNkZWYiLCJhdWQiOiJkaWQ6cGtjOmV0aDoweDEyMzQ1Njc4OTBhYmNkZWYiLCJ2ZXJzaW9uIjoiMSJ9",
-    "signature": "signature_placeholder"
   }
 }
