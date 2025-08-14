@@ -62,38 +62,24 @@ class Game2048 {
     }
 
     callFarcasterReady() {
-        // Multiple attempts to call ready
-        const readyMethods = [
-            () => window.sdk?.actions?.ready(),
-            () => window.farcaster?.actions?.ready(),
-            () => window.farcaster?.mini?.actions?.ready(),
-            () => window.__warpcast__?.miniApp?.actions?.ready(),
-            () => window.actions?.ready(),
-            () => window.FarcasterSDK?.actions?.ready()
-        ];
-
-        let readyCalled = false;
-        
-        for (const method of readyMethods) {
-            try {
-                if (typeof method === 'function' && method()) {
-                    console.log('Farcaster ready called successfully');
-                    readyCalled = true;
-                    break;
+        // Use the globally available SDK
+        if (window.farcasterSDK) {
+            setTimeout(async () => {
+                try {
+                    await window.farcasterSDK.actions.ready();
+                    console.log('🎮 Game ready called via official SDK');
+                } catch (error) {
+                    console.error('Game ready call failed:', error);
                 }
-            } catch (e) {
-                // Continue to next method
-            }
-        }
-
-        // Fallback postMessage
-        if (!readyCalled) {
-            try {
-                window.parent?.postMessage({ type: 'mini-app:ready' }, '*');
-                window.parent?.postMessage({ type: 'farcaster-mini-app-ready' }, '*');
-            } catch (e) {
-                console.log('PostMessage ready fallback attempted');
-            }
+            }, 100);
+        } else if (window.callFarcasterReady) {
+            // Use the global ready function
+            setTimeout(async () => {
+                await window.callFarcasterReady();
+                console.log('🎮 Game ready called via global function');
+            }, 100);
+        } else {
+            console.log('🎮 No Farcaster SDK available');
         }
     }
 
@@ -325,9 +311,9 @@ class Game2048 {
         this.statusElement.classList.remove('hidden', 'success', 'error');
         
         try {
-            // Try Farcaster SDK first
-            if (window.sdk?.actions?.share) {
-                await window.sdk.actions.share({
+            // Try Farcaster SDK sharing first
+            if (window.farcasterSDK?.actions?.share) {
+                await window.farcasterSDK.actions.share({
                     text: message,
                     embeds: [{ url: window.location.href }]
                 });
@@ -336,16 +322,19 @@ class Game2048 {
                 return;
             }
 
-            // Try Farcaster parent window communication
+            // Try parent window communication for embedded mini apps
             if (window.parent !== window) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
                 window.parent.postMessage({
                     type: 'farcaster-share',
                     data: { text: message, embeds: [{ url: window.location.href }] }
                 }, '*');
                 this.statusElement.textContent = '✓ Posted to Farcaster!';
                 this.statusElement.classList.add('success');
-            } else if (navigator.share) {
+                return;
+            }
+
+            // Fallback to web share API
+            if (navigator.share) {
                 await navigator.share({ 
                     title: 'Farcaster 2048 Score', 
                     text: message, 
@@ -384,17 +373,16 @@ document.addEventListener('DOMContentLoaded', () => {
     new Game2048();
 });
 
-// Additional ready call after game is loaded
+// Final ready call when everything is loaded
 window.addEventListener('load', () => {
-    // Final attempt to call ready
-    setTimeout(() => {
-        try {
-            if (window.sdk?.actions?.ready && typeof window.sdk.actions.ready === 'function') {
-                window.sdk.actions.ready();
-                console.log('Final ready call attempted');
+    setTimeout(async () => {
+        if (window.farcasterSDK) {
+            try {
+                await window.farcasterSDK.actions.ready();
+                console.log('🎮 Final ready call successful');
+            } catch (e) {
+                console.log('🎮 Final ready call failed:', e);
             }
-        } catch (e) {
-            console.log('Final ready call failed:', e);
         }
-    }, 500);
+    }, 200);
 });
